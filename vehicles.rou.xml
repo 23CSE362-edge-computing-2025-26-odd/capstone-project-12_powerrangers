@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- Vehicle types -->
+    <vType id="fastCar" accel="4.0" decel="6.0" sigma="0.5" length="5" maxSpeed="20.0" color="0,1,0"/>
+    <vType id="slowCar" accel="2.0" decel="4.0" sigma="0.5" length="5" maxSpeed="10.0" color="0,0,1"/>
+    <vType id="ambulance" accel="3.0" decel="6.0" sigma="0.5" length="10" maxSpeed="13.9" color="1,1,1"/>
+
+b/e/h
+    <!-- Regular car routes -->
+    <route id="routeBCF" edges="B_C C_F"/>
+    <route id="routeCF" edges="C_F"/>
+    <route id="routeDEHI" edges="D_E E_H H_I"/>
+    <route id="routeAEF" edges="A_B B_E E_F"/>
+    <route id="routeABCF" edges="A_B B_C C_F"/>
+    <route id="routeADG" edges="A_D D_G G_H"/>
+    <route id="routeBEHI" edges="B_E E_H H_I"/>
+    <route id="routeAF" edges="A_B B_E E_F F_I"/>
+    <route id="routeDG" edges="D_G G_H"/>
+    <route id="routeFI" edges="F_I"/>
+    <route id="routeBCEF" edges="B_C C_F E_F"/>
+    <route id="routeEF" edges="E_F"/>
+    <route id="routeGHI" edges="G_H H_I"/>
+    <route id="routeHI" edges="H_I"/>
+    <route id="routeAD" edges="A_D"/>
+    <route id="routeBEF" edges="B_E E_F"/>
+    <route id="routeCFI" edges="C_F F_I"/>
+    <route id="routeEHFI" edges="E_H H_I F_I"/>
+
+    <!-- Parking-only routes for ambulances -->
+    <route id="routeAmbulance0" edges="A_B_parking"/>
+    <route id="routeAmbulance1" edges="D_G_parking"/>
+    <route id="routeAmbulance2" edges="H_I_parking"/>
+
+</routes>

@@ -1,0 +1,15 @@
+<configuration>
+    <input>
+        <net-file value="output.net.xml"/>      <!-- This is the compiled network -->
+        <route-files value="vehicles.rou.xml"/>
+    </input>
+
+    <time>
+        <begin value="0"/>
+        <end value="100"/>
+    </time>
+
+    <gui_only>
+        <start value="true"/>
+    </gui_only>
+</configuration>
