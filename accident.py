@@ -1,3 +1,4 @@
+# ----------------------------
 import sys
 import os
 import time
@@ -34,53 +35,58 @@ print("Loaded routes:", routes)
 print("Loaded vehicle types:", list(vtypes.keys()))
 
 # ----------------------------
-NUM_VEHICLES = 8
-NUM_AMBULANCES = 3
-step = 0
-MAX_STEPS = 500
-COLLISION_DISTANCE = 5.0  # meters threshold
+NUM_INITIAL_VEHICLES = 8
+SPAWN_INTERVAL = 10
+VEHICLE_COUNTER = 0
+COLLISION_DISTANCE = 2.5  # meters threshold
 
-# Track permanently stopped vehicles and reported collisions
 stopped_vehicles = set()
 reported_collisions = set()
 
+# ----------------------------
+# Start SUMO
 traci.start([
     sumoBinary, "-c", sumoConfig,
     "--collision.action", "none",
     "--collision.check-junctions", "true",
     "--ignore-route-errors", "true"
-], port=8813)   # 👈 use port param here
-
+], port=8813)
 
 # ----------------------------
-# Spawn ambulances at fixed parking edges using dedicated routes
+# Spawn ambulances at fixed parking edges
 ambulance_parking_routes = {
-    "ambulance0": "routeAmbulance0",
+    "ambulance0": "routeAmbulance0",  # single-edge parking route
     "ambulance1": "routeAmbulance1",
     "ambulance2": "routeAmbulance2"
 }
 
 for vid, route in ambulance_parking_routes.items():
+    # Add vehicle on parking route
     traci.vehicle.add(vid, routeID=route, typeID="ambulance", depart=0)
+
+    # Set all emergency and gap parameters to avoid movement
     traci.vehicle.setSpeed(vid, 0)
     traci.vehicle.setEmergencyDecel(vid, 1000)
     traci.vehicle.setTau(vid, 0)
     traci.vehicle.setMinGap(vid, 0)
 
-    # Use the edge from the single-edge route
-    edgeID = traci.route.getEdges(route)[0]
-    traci.vehicle.setStop(vid, edgeID=edgeID, pos=0, duration=1e6)
+    # Stop vehicle permanently at the start of the parking edge
+    parking_edge = traci.route.getEdges(route)[0]
+    traci.vehicle.setStop(vid, edgeID=parking_edge, pos=0, duration=1e6)
 
     stopped_vehicles.add(vid)
-    print(f"Ambulance {vid} spawned on {route} ({edgeID}) in parking mode")
+    print(f"Ambulance {vid} spawned on parking route {route} ({parking_edge})")
 
 # ----------------------------
-# Spawn regular vehicles at start
-for i in range(NUM_VEHICLES):
-    vid = f"veh{i}"
+# Function to spawn a normal vehicle
+def spawn_vehicle(step):
+    global VEHICLE_COUNTER
+    vid = f"veh{VEHICLE_COUNTER}"
+    VEHICLE_COUNTER += 1
+
     r = random.choice(routes)
     t = random.choice([v for v in vtypes.keys() if v != "ambulance"])
-    traci.vehicle.add(vid, routeID=r, typeID=t, depart=0)
+    traci.vehicle.add(vid, routeID=r, typeID=t, depart=step)
     traci.vehicle.setEmergencyDecel(vid, 1000)
     traci.vehicle.setTau(vid, 0)
     traci.vehicle.setMinGap(vid, 0)
@@ -89,19 +95,33 @@ for i in range(NUM_VEHICLES):
     max_speed = float(vtypes[t].attrib.get("maxSpeed", 13.9))
     speed = random.uniform(max_speed * 0.3, max_speed)
     traci.vehicle.setSpeed(vid, speed)
-    print(f"Added {vid} on route {r} as {t} at speed {speed:.1f} m/s")
+
+    print(f"Spawned {vid} on {r} as {t} at speed {speed:.1f} m/s at step {step}")
 
 # ----------------------------
+# Spawn initial vehicles
+for _ in range(NUM_INITIAL_VEHICLES):
+    spawn_vehicle(step=0)
+
+# ----------------------------
+# Run simulation
+step = 0
+MAX_STEPS = 500  # or infinite loop if desired
 while step < MAX_STEPS:
     traci.simulationStep()
     step += 1
     time.sleep(0.5)
 
+    # Spawn new vehicles periodically
+    if step % SPAWN_INTERVAL == 0:
+        for _ in range(random.randint(1, 2)):
+            spawn_vehicle(step)
+
     # Get positions of all vehicles
     vehicles = traci.vehicle.getIDList()
     positions = {vid: traci.vehicle.getPosition(vid) for vid in vehicles}
 
-    # Check for collisions by threshold and report each unique pair only once
+    # Check collisions
     for vid1, pos1 in positions.items():
         for vid2, pos2 in positions.items():
             if vid1 >= vid2:
@@ -114,13 +134,11 @@ while step < MAX_STEPS:
                     traci.vehicle.setSpeed(v, 0)
                     stopped_vehicles.add(v)
 
-                # Log full accident info (absolute X, Y coordinates)
-                x, y = pos1  # pos1 is already absolute coords from traci.vehicle.getPosition
+                x, y = pos1
                 sim_time = traci.simulation.getTime()
                 print(f"⚠️ Accident detected between {vid1} and {vid2} "
                       f"at location=({x:.2f}, {y:.2f}), time={sim_time:.1f}s")
 
-                # Save for OMNeT++ integration (DENM message input)
                 reported_collisions.add(pair)
 
 # ----------------------------
