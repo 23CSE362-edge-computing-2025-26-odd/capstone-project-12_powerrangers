@@ -48,7 +48,7 @@
         <lane index="0" speed="13.89" length="100" width="7.0"/>
     </edge>
 
-    <!-- Parking edges for ambulances (fixed to use parking nodes) -->
+    <!-- Parking edges for ambulances -->
     <edge id="A_B_parking" from="A_parking" to="A">
         <lane index="0" speed="5.0" length="10" width="7.0"/>
     </edge>
@@ -57,5 +57,16 @@
     </edge>
     <edge id="H_I_parking" from="H_parking" to="H">
         <lane index="0" speed="5.0" length="10" width="7.0"/>
+    </edge>
+
+    <!-- Edge node infrastructure connections -->
+    <edge id="EdgeInfra_D" from="EdgeInfra_1" to="D">
+        <lane index="0" speed="5.0" length="15" width="3.0"/>
+    </edge>
+    <edge id="EdgeInfra_C" from="C" to="EdgeInfra_2">
+        <lane index="0" speed="5.0" length="15" width="3.0"/>
+    </edge>
+    <edge id="EdgeInfra_I" from="I" to="EdgeInfra_3">
+        <lane index="0" speed="5.0" length="15" width="3.0"/>
     </edge>
 </edges>
