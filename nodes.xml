@@ -15,4 +15,14 @@
     <node id="A_parking" x="-20" y="0" type="priority"/>
     <node id="D_parking" x="-20" y="100" type="priority"/>
     <node id="H_parking" x="100" y="220" type="priority"/>
+
+    <!-- Edge nodes for V2V communication infrastructure -->
+    <node id="EdgeNode_D" x="0" y="100" type="priority"/>    <!-- Same as D but designated as edge -->
+    <node id="EdgeNode_C" x="200" y="0" type="priority"/>    <!-- Same as C but designated as edge -->
+    <node id="EdgeNode_I" x="200" y="200" type="priority"/>  <!-- Same as I but designated as edge -->
+    
+    <!-- Additional infrastructure nodes for edge connectivity -->
+    <node id="EdgeInfra_1" x="-10" y="100" type="priority"/>
+    <node id="EdgeInfra_2" x="210" y="0" type="priority"/>
+    <node id="EdgeInfra_3" x="210" y="200" type="priority"/>
 </nodes>
