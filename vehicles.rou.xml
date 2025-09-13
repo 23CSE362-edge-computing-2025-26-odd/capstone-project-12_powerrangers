@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <routes>
-    <!-- Vehicle types -->
-    <vType id="fastCar" accel="4.0" decel="6.0" sigma="0.5" length="5" maxSpeed="20.0" color="0,1,0"/>
-    <vType id="slowCar" accel="2.0" decel="4.0" sigma="0.5" length="5" maxSpeed="10.0" color="0,0,1"/>
-    <vType id="ambulance" accel="3.0" decel="6.0" sigma="0.5" length="10" maxSpeed="13.9" color="1,1,1"/>
-    <vType id="v2vCar" accel="3.5" decel="5.5" sigma="0.5" length="5" maxSpeed="15.0" color="0,1,1"/>
+    <!-- Vehicle types with GUI shapes -->
+    <vType id="fastCar" accel="4.0" decel="6.0" sigma="0.5" length="5" maxSpeed="20.0"
+           color="0,1,0" guiShape="passenger/sedan"/>
 
-    <!-- Regular car routes covering the entire network -->
+    <vType id="slowCar" accel="2.0" decel="4.0" sigma="0.5" length="5" maxSpeed="10.0"
+           color="0,0,1" guiShape="passenger/hatchback"/>
+
+    <vType id="ambulance" accel="3.0" decel="6.0" sigma="0.5" length="10" maxSpeed="13.9"
+           color="1,1,1" guiShape="emergency"/>
+
+    <vType id="v2vCar" accel="3.5" decel="5.5" sigma="0.5" length="5" maxSpeed="15.0"
+           color="0,1,1" guiShape="passenger/wagon"/>
+
+    <!-- Regular car routes -->
     <route id="routeBCF" edges="B_C C_F"/>
     <route id="routeCF" edges="C_F"/>
     <route id="routeDEHI" edges="D_E E_H H_I"/>
@@ -24,15 +31,15 @@
     <route id="routeAD" edges="A_D"/>
     <route id="routeBEF" edges="B_E E_F"/>
     <route id="routeCFI" edges="C_F F_I"/>
-    <route id="routeEHFI" edges="E_H H_I"/>
-    
+    <route id="routeEHFI" edges="E_H H_I F_I"/>
+
     <!-- Additional routes for better network coverage -->
     <route id="routeFullHorizontal" edges="A_B B_C"/>
     <route id="routeFullVertical" edges="A_D D_G"/>
     <route id="routeCornerToCorner" edges="A_B B_E E_H H_I"/>
     <route id="routeMiddleCross" edges="D_E E_F"/>
-    
-    <!-- Routes that will likely cause collisions for testing -->
+
+    <!-- Routes for collision testing -->
     <route id="routeCollisionTest1" edges="B_E E_H"/>
     <route id="routeCollisionTest2" edges="E_F F_I"/>
     <route id="routeShortLoop1" edges="A_B"/>
@@ -44,5 +51,4 @@
     <route id="routeAmbulance0" edges="A_B_parking"/>
     <route id="routeAmbulance1" edges="D_G_parking"/>
     <route id="routeAmbulance2" edges="H_I_parking"/>
-
 </routes>

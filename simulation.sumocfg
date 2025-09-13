@@ -9,7 +9,7 @@
         <end value="100"/>
     </time>
 
-    <gui_only>
-        <start value="true"/>
+     <gui_only>
+        <gui-settings-file value="viewsettings.xml"/>
     </gui_only>
 </configuration>

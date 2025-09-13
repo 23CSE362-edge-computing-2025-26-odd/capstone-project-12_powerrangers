@@ -2,61 +2,61 @@
 <edges>
     <!-- Horizontal roads (top row: A-B-C) -->
     <edge id="A_B" from="A" to="B">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="B_C" from="B" to="C">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Horizontal roads (middle row: D-E-F) -->
     <edge id="D_E" from="D" to="E">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="E_F" from="E" to="F">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Horizontal roads (bottom row: G-H-I) -->
     <edge id="G_H" from="G" to="H">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="H_I" from="H" to="I">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Vertical roads (left col: A-D-G) -->
     <edge id="A_D" from="A" to="D">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="D_G" from="D" to="G">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Vertical roads (middle col: B-E-H) -->
     <edge id="B_E" from="B" to="E">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="E_H" from="E" to="H">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Vertical roads (right col: C-F-I) -->
     <edge id="C_F" from="C" to="F">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
     <edge id="F_I" from="F" to="I">
-        <lane index="0" speed="13.89" length="100" width="7.0"/>
+        <lane index="0" speed="13.89" length="100" width="12.0"/>
     </edge>
 
     <!-- Parking edges for ambulances -->
     <edge id="A_B_parking" from="A_parking" to="A">
-        <lane index="0" speed="5.0" length="10" width="7.0"/>
+        <lane index="0" speed="5.0" length="10" width="12.0"/>
     </edge>
     <edge id="D_G_parking" from="D_parking" to="D">
-        <lane index="0" speed="5.0" length="10" width="7.0"/>
+        <lane index="0" speed="5.0" length="10" width="12.0"/>
     </edge>
     <edge id="H_I_parking" from="H_parking" to="H">
-        <lane index="0" speed="5.0" length="10" width="7.0"/>
+        <lane index="0" speed="5.0" length="10" width="12.0"/>
     </edge>
 
     <!-- Edge node infrastructure connections -->
