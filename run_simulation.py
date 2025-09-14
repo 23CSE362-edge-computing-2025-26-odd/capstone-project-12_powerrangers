@@ -34,7 +34,7 @@ COLLISION_DISTANCE = 7.5  # meters threshold
 
 # Edge node positions (fixed infrastructure nodes)
 EDGE_NODE_POSITIONS = {
-    "EdgeNode_A": (0, 0),      # Near intersection A
+    "EdgeNode_A": (30, 20),      # Near intersection A
     "EdgeNode_D": (0, 100),    # Near intersection D
     "EdgeNode_C": (200, 0),    # Near intersection C
     "EdgeNode_I": (200, 200)   # Near intersection I
@@ -362,7 +362,7 @@ MAX_STEPS = 500
 while step < MAX_STEPS:
     traci.simulationStep()
     step += 1
-    time.sleep(0.25)
+    time.sleep(0.5)
 
     # Spawn new vehicles periodically
     if step % SPAWN_INTERVAL == 0:
