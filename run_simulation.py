@@ -17,6 +17,7 @@ tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
 if tools not in sys.path:
     sys.path.append(tools)
 
+from best_erv import select_best_ambulance
 from Vehicle_Rerouting import blocked_edges, stopped_vehicles, reroute_vehicles, handle_accident, clear_blocked_edges, remove_stopped_vehicle
 import traci
 import sumolib
@@ -34,7 +35,7 @@ COLLISION_DISTANCE = 7.5  # meters threshold
 
 # Edge node positions (fixed infrastructure nodes)
 EDGE_NODE_POSITIONS = {
-    "EdgeNode_A": (30, 20),      # Near intersection A
+    "EdgeNode_A": (0, 0),      # Near intersection A
     "EdgeNode_D": (0, 100),    # Near intersection D
     "EdgeNode_C": (200, 0),    # Near intersection C
     "EdgeNode_I": (200, 200)   # Near intersection I
@@ -322,6 +323,10 @@ for vid, route in ambulance_parking_routes.items():
         print(f"Failed to spawn ambulance {vid}: {e}")
 print("=" * 30)
 
+# ----------------------------best_erv part
+# Initialize ambulance readiness dictionary
+ambulance_readiness = {amb_id: True for amb_id in ambulance_parking_routes.keys()}
+
 # ----------------------------
 # Function to spawn a normal vehicle
 def spawn_vehicle(step):
@@ -362,7 +367,7 @@ MAX_STEPS = 500
 while step < MAX_STEPS:
     traci.simulationStep()
     step += 1
-    time.sleep(0.5)
+    time.sleep(0.25)
 
     # Spawn new vehicles periodically
     if step % SPAWN_INTERVAL == 0:
@@ -412,7 +417,7 @@ while step < MAX_STEPS:
         x, y = location
         sim_time = traci.simulation.getTime()
         
-        print(f"\n⚠️ ACCIDENT DETECTED")
+        print(f"\n ACCIDENT DETECTED")
         print("=" * 25)
         print(f"Accident ID: {accident_id}")
         print(f"Time: {sim_time:.1f} seconds")
@@ -430,6 +435,28 @@ while step < MAX_STEPS:
         rerouted_count = handle_accident(traci, collision_pair[0], collision_pair[1])
         print(f"Rerouted {rerouted_count} vehicles due to accident")
         
+        # Accident location + edge from detector
+        # Define detect_accident if not already defined or import it from the correct module
+        def detect_accident(veh1, veh2, x, y):
+            """Dummy implementation: returns the current edge of veh1 as the accident edge."""
+            try:
+                return traci.vehicle.getRoadID(veh1)
+            except Exception:
+                return None
+
+        accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
+
+        # Collect ambulance positions
+        positions = {}
+        for amb in ambulance_readiness.keys():
+            try:
+                positions[amb] = traci.vehicle.getPosition(amb)
+            except Exception:
+                continue
+
+        # GA call
+        best_ambulance = select_best_ambulance(x, y, positions, accident_edge)
+
 
 
         cen.register(accident_id, (x, y), sim_time)
