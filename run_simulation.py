@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 import math
 import uuid
 from collections import defaultdict
+from cen_broadcast import CENBroadcast
+cen = CENBroadcast(interval=300) 
 
 # -------------------- SUMO PATH SETUP --------------------
 if 'SUMO_HOME' not in os.environ:
@@ -15,6 +17,7 @@ tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
 if tools not in sys.path:
     sys.path.append(tools)
 
+from Vehicle_Rerouting import blocked_edges, stopped_vehicles, reroute_vehicles, handle_accident, clear_blocked_edges, remove_stopped_vehicle
 import traci
 import sumolib
 
@@ -43,7 +46,6 @@ edge_nodes = {}
 broadcasted_accidents = set()
 message_history = {}
 hop_count_stats = defaultdict(int)
-stopped_vehicles = set()
 reported_collisions = set()
 total_accidents = 0
 successful_notifications = 0
@@ -347,6 +349,7 @@ def spawn_vehicle(step):
         print(f"Failed to spawn vehicle {vid}: {e}")
         return False
 
+
 # ----------------------------
 # Spawn initial vehicles
 for _ in range(NUM_INITIAL_VEHICLES):
@@ -423,6 +426,14 @@ while step < MAX_STEPS:
         print(f"V2V Notification Status: {'SUCCESS' if success else 'FAILED'}")
         print("=" * 25)
 
+        # Handle the accident - call the function with correct parameters
+        rerouted_count = handle_accident(traci, collision_pair[0], collision_pair[1])
+        print(f"Rerouted {rerouted_count} vehicles due to accident")
+        
+
+
+        cen.register(accident_id, (x, y), sim_time)
+
     # Progress update every 50 steps
     if step % 50 == 0:
         current_vehicles = len([v for v in traci.vehicle.getIDList() if not v.startswith('ambulance')])
@@ -432,7 +443,10 @@ while step < MAX_STEPS:
         print(f"\n--- STATUS UPDATE - Step {step} (Time: {sim_time:.0f}s) ---")
         print(f"Active vehicles: {active_vehicles}, Stopped vehicles: {current_vehicles - active_vehicles}")
         print(f"Total accidents: {total_accidents}, Edge notifications: {successful_notifications}")
+        print(f"Currently blocked edges: {blocked_edges}")
 
+    sim_time = traci.simulation.getTime()
+    cen.broadcast(sim_time)
 # ----------------------------
 # Final Statistics
 print("\n" + "=" * 60)
