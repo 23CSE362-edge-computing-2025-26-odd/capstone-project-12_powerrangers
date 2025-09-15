@@ -1,3 +1,22 @@
+"""
+
+This script generates vehicle routes for a road network
+represented as a graph of nodes (A–I) and edges.
+
+Main Features:
+1. Defines nodes, edges, and boundary nodes of the network.
+2. Recursively computes all possible routes up to a given depth
+   while avoiding cycles, and stores valid boundary-to-boundary paths.
+3. Specifies multiple vehicle types (fast car, slow car, ambulance)
+   with different speed and acceleration parameters.
+4. Creates route definitions for normal vehicles as well as
+   special hardcoded ambulance parking routes.
+5. Exports all routes into a SUMO-compatible XML file
+   (`vehicles.rou.xml`) with proper formatting.
+   
+"""
+
+
 import xml.etree.ElementTree as ET
 
 # ----------------------------
