@@ -340,6 +340,26 @@ while step < MAX_STEPS:
         source_vehicle = collision_pair[0]
         cen.register(accident_id, (x, y), sim_time, source_vehicle)
 
+        def detect_accident(veh1, veh2, x, y):
+            """Dummy implementation: returns the current edge of veh1 as the accident edge."""
+            try:
+                return traci.vehicle.getRoadID(veh1)
+            except Exception:
+                return None
+
+        accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
+
+            # Collect ambulance positions
+        positions = {}
+        for amb in ambulance_readiness.keys():
+                try:
+                    positions[amb] = traci.vehicle.getPosition(amb)
+                except Exception:
+                    continue
+
+            # GA call
+        best_ambulance = select_best_ambulance(x, y, positions, accident_edge)
+
     # Vehicles listen to CEN broadcasts
     for vid, vehicle in vehicles_dict.items():
         if vid not in traci.vehicle.getIDList():
@@ -349,24 +369,6 @@ while step < MAX_STEPS:
     # Periodic CEN broadcast
     cen.broadcast(traci.simulation.getTime(), vehicles_dict=vehicles_dict, graph=graph, comm_range=V2V_COMMUNICATION_RANGE)
 
-    def detect_accident(veh1, veh2, x, y):
-            """Dummy implementation: returns the current edge of veh1 as the accident edge."""
-            try:
-                return traci.vehicle.getRoadID(veh1)
-            except Exception:
-                return None
-
-    accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
-
-        # Collect ambulance positions
-    positions = {}
-    for amb in ambulance_readiness.keys():
-            try:
-                positions[amb] = traci.vehicle.getPosition(amb)
-            except Exception:
-                continue
-
-        # GA call
-    best_ambulance = select_best_ambulance(x, y, positions, accident_edge)
+    
     
 traci.close()
