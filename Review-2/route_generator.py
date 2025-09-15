@@ -1,7 +1,6 @@
 """
 
-This generates vehicle routes for a road network
-represented as a graph of nodes (A–I) and edges.
+This generates vehicle routes as a graph of nodes (A–I) and edges.
 
 Main Features:
 1. Defines nodes, edges, and boundary nodes of the network.
