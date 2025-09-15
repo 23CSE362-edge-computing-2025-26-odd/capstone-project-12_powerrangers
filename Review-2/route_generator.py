@@ -17,7 +17,7 @@ Main Features:
 """
 
 
-import xml.etree.ElementTree as ET   # Library for creating/writing XML files
+import xml.etree.ElementTree as ET  
 
 # ----------------------------
 # Define nodes in the road network (graph representation)
