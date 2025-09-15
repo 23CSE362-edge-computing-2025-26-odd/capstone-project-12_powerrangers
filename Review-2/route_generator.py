@@ -1,6 +1,6 @@
 """
 
-This script generates vehicle routes for a road network
+This generates vehicle routes for a road network
 represented as a graph of nodes (A–I) and edges.
 
 Main Features:
