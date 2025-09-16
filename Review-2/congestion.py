@@ -6,7 +6,7 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-# SUMO Setup
+# SUMO SetUp
 if 'SUMO_HOME' not in os.environ:
     os.environ['SUMO_HOME'] = "/usr/share/sumo"
 tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -48,3 +48,4 @@ def get_fuzzy_congestion(edge):
     congestion_sim.input['avg_speed'] = avg_spd
     congestion_sim.compute()
     return congestion_sim.output['congestion']  # 0-10
+
