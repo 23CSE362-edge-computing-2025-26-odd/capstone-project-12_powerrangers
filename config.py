@@ -8,10 +8,10 @@ THINGSPEAK_READ_API_KEY = os.getenv('THINGSPEAK_READ_API_KEY', 'YOUR_READ_API_KE
 
 # Data Configuration
 DATA_FIELDS = {
-    'field1': 'temperature',
-    'field2': 'humidity',
-    'field3': 'pressure',
-    'field4': 'air_quality'
+    'field1': 'vehicle_count',
+    'field2': 'emergency_detected',
+    'field3': 'traffic_density',
+    'field4': 'signal_status'
 }
 
 # Update interval (seconds)
