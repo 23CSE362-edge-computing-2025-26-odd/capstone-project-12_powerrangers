@@ -1,67 +1,100 @@
-# fetch_data.py
-import requests
+# dashboard.py
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import plotly.graph_objs as go
+from fetch_data import fetch_data
+from config import UPDATE_INTERVAL
 import pandas as pd
-from config import THINGSPEAK_CHANNEL_ID, THINGSPEAK_READ_API_KEY, DATA_FIELDS
 
-def fetch_data(results=100):
-    """Fetch data from ThingSpeak
-    
-    Args:
-        results: Number of data points to retrieve (default: 100)
-    
-    Returns:
-        pandas DataFrame with sensor data
-    """
-    url = f'https://api.thingspeak.com/channels/{THINGSPEAK_CHANNEL_ID}/feeds.json'
-    params = {
-        'api_key': THINGSPEAK_READ_API_KEY,
-        'results': results
-    }
-    
-    try:
-        response = requests.get(url, params=params)
-        
-        if response.status_code == 200:
-            data = response.json()
-            feeds = data.get('feeds', [])
-            
-            if not feeds:
-                print("No data available")
-                return None
-            
-            # Convert to DataFrame
-            df = pd.DataFrame(feeds)
-            
-            # Rename columns based on DATA_FIELDS
-            column_mapping = {field: name for field, name in DATA_FIELDS.items()}
-            df = df.rename(columns=column_mapping)
-            
-            # Convert timestamp to datetime
-            df['created_at'] = pd.to_datetime(df['created_at'])
-            
-            # Convert numeric fields
-            for field_name in DATA_FIELDS.values():
-                if field_name in df.columns:
-                    df[field_name] = pd.to_numeric(df[field_name], errors='coerce')
-            
-            print(f"Successfully fetched {len(df)} data points")
-            return df
-        else:
-            print(f"Error fetching data. Status: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+app = dash.Dash(__name__)
 
-if __name__ == "__main__":
-    print(f"Fetching data from ThingSpeak Channel: {THINGSPEAK_CHANNEL_ID}\n")
-    
-    # Fetch last 100 data points
-    df = fetch_data(results=100)
-    
-    if df is not None:
-        print("\nData Summary:")
-        print(df.describe())
-        print("\nLatest 5 entries:")
-        print(df.tail())
+app.layout = html.Div([
+    html.H1("Traffic Accident & Emergency Dashboard", style={'textAlign': 'center'}),
+
+    html.Div([
+        html.H3("Real-time Accident Event Monitoring"),
+        dcc.Interval(
+            id='interval-component',
+            interval=UPDATE_INTERVAL*1000,
+            n_intervals=0
+        )
+    ]),
+
+    html.Div([
+        dcc.Graph(id='vehicle-count-graph')
+    ]),
+
+    html.Div([
+        html.H3("Latest Logged Accident Event"),
+        html.Div(id='latest-event')
+    ], style={'margin': '20px'}),
+
+    html.Div([
+        html.H3("Recent Events Table"),
+        html.Div(id='events-table')
+    ], style={'margin': '20px'})
+])
+
+def create_line_graph(df, y_field, title, color):
+    if df is None or y_field not in df.columns:
+        return go.Figure()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['created_at'],
+        y=df[y_field],
+        mode='lines+markers',
+        name=y_field,
+        line=dict(color=color, width=2),
+        marker=dict(size=6)
+    ))
+
+    fig.update_layout(
+        title=title,
+        xaxis_title='Time',
+        yaxis_title=y_field.replace('_', ' ').title(),
+        hovermode='x unified'
+    )
+
+    return fig
+
+@app.callback(
+    [Output('vehicle-count-graph', 'figure'),
+     Output('latest-event', 'children'),
+     Output('events-table', 'children')],
+    [Input('interval-component', 'n_intervals')]
+)
+def update_dashboard(n):
+    df = fetch_data(results=50)
+
+    # Vehicle Count chart
+    vehicle_fig = create_line_graph(df, 'vehicle_count', 'Vehicle Count Over Time', 'blue')
+
+    # Latest Accident Event
+    if df is not None and len(df) > 0:
+        latest = df.iloc[-1]
+        latest_div = html.Ul([
+            html.Li(f"Accident Time: {latest.get('timestamp', 'N/A')}"),
+            html.Li(f"Location: {latest.get('accident_location', 'N/A')}"),
+            html.Li(f"Accident Type: {latest.get('accident_type', 'N/A')}"),
+            html.Li(f"Emergency Detected: {int(latest.get('emergency_detected', 0))}"),
+            html.Li(f"Vehicle Number: {latest.get('accident_vehicle_number', 'N/A')}"),
+            html.Li(f"Reported at: {latest.get('created_at')}")
+        ])
+        # Table of recent events
+        table_df = df[['created_at','accident_vehicle_number','accident_type','accident_location','vehicle_count','emergency_detected']].tail(10)
+        table = html.Table([
+            html.Tr([html.Th(col) for col in table_df.columns])] +
+            [html.Tr([html.Td(table_df.iloc[i][col]) for col in table_df.columns]) for i in range(table_df.shape[0])]
+        )
+    else:
+        latest_div = "No data available"
+        table = "No data"
+
+    return vehicle_fig, latest_div, table
+
+if __name__ == '__main__':
+    print("Starting dashboard server...")
+    print("Open http://localhost:8050 in your browser")
+    app.run_server(debug=True, port=8050)
