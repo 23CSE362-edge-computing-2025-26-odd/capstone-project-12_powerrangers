@@ -4,13 +4,23 @@ import random
 import time
 from config import THINGSPEAK_CHANNEL_ID, THINGSPEAK_WRITE_API_KEY, UPDATE_INTERVAL
 
+from datetime import datetime
+
 def generate_sample_data():
-    """Generate sample sensor data"""
+    vehicle_count = random.randint(5, 50)                    # Number of vehicles
+    emergency_detected = random.choice([0, 1])               # 0 = No, 1 = Yes
+    vehicle_number = f"AP{random.randint(10,99)}XYZ{random.randint(1000,9999)}"
+    accident_type = random.choice(["none", "collision", "rollover", "pedestrian"])
+    accident_location = random.choice(["Junction 21", "Main St", "Highway Exit", "Intersection 14"])
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     return {
-        'field1': round(random.uniform(20.0, 30.0), 2),  # Temperature
-        'field2': round(random.uniform(40.0, 60.0), 2),  # Humidity
-        'field3': round(random.uniform(980.0, 1020.0), 2),  # Pressure
-        'field4': round(random.uniform(50.0, 150.0), 2)  # Air Quality
+        'field1': vehicle_count,
+        'field2': emergency_detected,
+        'field3': vehicle_number,
+        'field4': accident_type,
+        'field5': accident_location,
+        'field6': timestamp
     }
 
 def upload_to_thingspeak(data):
