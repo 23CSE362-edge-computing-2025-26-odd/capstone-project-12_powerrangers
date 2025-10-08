@@ -7,8 +7,10 @@ THINGSPEAK_READ_API_KEY = os.getenv('THINGSPEAK_READ_API_KEY', 'SPQNWFBRUHEVCZ0T
 DATA_FIELDS = {
     'field1': 'vehicle_count',
     'field2': 'emergency_detected',
-    'field3': 'signal_status',
-    'field4': 'traffic_density'
+    'field3': 'accident_vehicle_number',
+    'field4': 'accident_type',
+    'field5': 'accident_location',
+    'field6': 'timestamp'
 }
 
 UPDATE_INTERVAL = 15
