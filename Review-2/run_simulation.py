@@ -44,6 +44,15 @@ reported_collisions = set()
 total_accidents = 0
 successful_notifications = 0
 
+# -------------------- ERV MANAGEMENT STATE --------------------
+erv_assignments = {}  # Maps ERV ID to accident ID
+erv_status = {}  # Maps ERV ID to status ('idle', 'assigned', 'en_route', 'arrived')
+erv_destinations = {}  # Maps ERV ID to (x, y) destination
+erv_target_edge = {}  # Maps ERV ID to target edge ID
+accident_status = {}  # Maps accident ID to {'location': (x,y), 'erv': erv_id, 'cleared': bool, 'vehicles': []}
+erv_arrival_times = {}  # Maps ERV ID to arrival time at accident
+accident_vehicles = {}  # Maps accident ID to list of vehicle IDs involved
+
 # -------------------- PARSE ROUTES AND VEHICLE TYPES --------------------
 rou_file = "vehicles.rou.xml"
 tree = ET.parse(rou_file)
@@ -218,6 +227,213 @@ def broadcast_emergency_alert(source_vehicle_id, accident_location, collision_pa
         print(f"    [FAILURE] Emergency alert {message_id} propagation failed")
     return success
 
+def detect_accident(veh1, veh2, x, y):
+    """Detects accident and returns the accident edge."""
+    try:
+        return traci.vehicle.getRoadID(veh1)
+    except Exception:
+        return None
+
+# -------------------- ERV-SPECIFIC FUNCTIONS --------------------
+def initialize_erv_state(erv_id):
+    """Initialize state for an ERV."""
+    if erv_id not in erv_status:
+        erv_status[erv_id] = 'idle'
+        erv_assignments[erv_id] = None
+        erv_destinations[erv_id] = None
+        erv_target_edge[erv_id] = None
+        erv_arrival_times[erv_id] = None
+
+def get_available_erv(ambulance_readiness_keys):
+    """Find an available (idle) ERV."""
+    for erv_id in ambulance_readiness_keys:
+        if erv_status.get(erv_id, 'idle') == 'idle':
+            return erv_id
+    return None
+
+def assign_erv_to_accident(erv_id, accident_id, accident_x, accident_y, accident_edge, collision_pair):
+    """Assign an ERV to an accident."""
+    erv_assignments[erv_id] = accident_id
+    erv_status[erv_id] = 'assigned'
+    erv_destinations[erv_id] = (accident_x, accident_y)
+    erv_target_edge[erv_id] = accident_edge
+    accident_status[accident_id] = {
+        'location': (accident_x, accident_y),
+        'erv': erv_id,
+        'cleared': False,
+        'vehicles': list(collision_pair)
+    }
+    accident_vehicles[accident_id] = list(collision_pair)
+    print(f"[ERV ASSIGNMENT] {erv_id} assigned to accident {accident_id}")
+    print(f"{erv_id} dispatched to {accident_id}")
+
+def dispatch_erv(erv_id, accident_edge, accident_location):
+    """Dispatch an ERV to move toward the accident."""
+    try:
+        if erv_id not in traci.vehicle.getIDList():
+            print(f"[ERV] {erv_id} not found in simulation")
+            return False
+        
+        # Clear parking and enable movement
+        try:
+            traci.vehicle.setStop(erv_id, edgeID="", pos=0, duration=0, flags=0)
+        except:
+            pass
+        
+        try:
+            traci.vehicle.setMaxSpeed(erv_id, 30.0)
+            traci.vehicle.setSpeed(erv_id, -1)
+        except:
+            pass
+        
+        # Set route to accident edge
+        if accident_edge:
+            try:
+                current_edge = traci.vehicle.getRoadID(erv_id)
+                if current_edge and current_edge != accident_edge:
+                    # Compute route from current edge to accident edge
+                    route_edges = traci.simulation.findRoute(current_edge, accident_edge)
+                    if route_edges and route_edges.edges:
+                        traci.vehicle.setRoute(erv_id, list(route_edges.edges))
+                        print(f"[ERV DISPATCH] {erv_id} routed to accident edge {accident_edge}")
+                        print(f"{erv_id} en route to {erv_assignments[erv_id]}...")
+                    else:
+                        # Fallback: set direct route
+                        traci.vehicle.setRoute(erv_id, [accident_edge])
+                        print(f"[ERV DISPATCH] {erv_id} set direct route to {accident_edge}")
+                        print(f"{erv_id} en route to {erv_assignments[erv_id]}...")
+            except Exception as e:
+                print(f"[ERV DISPATCH] Failed to route {erv_id}: {e}")
+                return False
+        
+        erv_status[erv_id] = 'en_route'
+        return True
+    except Exception as e:
+        print(f"[ERV DISPATCH ERROR] {erv_id}: {e}")
+        return False
+
+def check_erv_arrival(erv_id, accident_id):
+    """Check if an ERV has reached the accident location."""
+    if erv_id not in traci.vehicle.getIDList():
+        return False
+    
+    if accident_id not in accident_status:
+        return False
+    
+    try:
+        erv_pos = traci.vehicle.getPosition(erv_id)
+        acc_x, acc_y = accident_status[accident_id]['location']
+        distance = calculate_distance(erv_pos, (acc_x, acc_y))
+        
+        # Check if ERV is on target edge or very close to accident
+        current_edge = traci.vehicle.getRoadID(erv_id)
+        target_edge = erv_target_edge.get(erv_id)
+        
+        # ERV has arrived when within 20 meters OR on the accident edge
+        if distance <= 20.0 or (target_edge and current_edge == target_edge):
+            erv_status[erv_id] = 'arrived'
+            erv_arrival_times[erv_id] = traci.simulation.getTime()
+            return True
+    except Exception as e:
+        print(f"[ERV ARRIVAL CHECK ERROR] {erv_id}: {e}")
+    
+    return False
+
+def clear_accident(erv_id, accident_id):
+    """Clear an accident: remove accident vehicles and allow traffic to resume."""
+    try:
+        if accident_id not in accident_status:
+            print(f"[ERROR] Accident {accident_id} not found")
+            return False
+        
+        print(f"🚨 {erv_id} reached accident {accident_id}, clearing road...")
+        
+        # Remove accident vehicles
+        vehicles_to_remove = accident_status[accident_id]['vehicles']
+        for veh in vehicles_to_remove:
+            if veh in traci.vehicle.getIDList():
+                try:
+                    traci.vehicle.remove(veh)
+                    print(f"    [CLEANUP] Vehicle {veh} removed from accident site")
+                except Exception as e:
+                    print(f"    [CLEANUP WARNING] Could not remove {veh}: {e}")
+        
+        accident_status[accident_id]['cleared'] = True
+        print(f"✅ Road cleared for traffic. {erv_id} ready for next emergency.")
+        
+        return True
+    except Exception as e:
+        print(f"[ACCIDENT CLEARING ERROR] {erv_id}, {accident_id}: {e}")
+        return False
+
+def reset_erv_after_service(erv_id):
+    """Reset an ERV to idle state and return to parking."""
+    try:
+        if erv_id in traci.vehicle.getIDList():
+            # Get the original parking route
+            amb_num = erv_id.replace('ambulance', '')
+            parking_route = f"routeAmbulance{amb_num}"
+            
+            try:
+                # Get parking edge
+                parking_edge = traci.route.getEdges(parking_route)[0]
+                current_edge = traci.vehicle.getRoadID(erv_id)
+                
+                # Compute route back to parking
+                if current_edge and current_edge != parking_edge:
+                    route_to_parking = traci.simulation.findRoute(current_edge, parking_edge)
+                    if route_to_parking and route_to_parking.edges:
+                        traci.vehicle.setRoute(erv_id, list(route_to_parking.edges))
+                        print(f"[ERV RESET] {erv_id} returning to parking at {parking_edge}")
+                    else:
+                        # Fallback: direct route
+                        traci.vehicle.setRoute(erv_id, [parking_edge])
+                        print(f"[ERV RESET] {erv_id} returning to parking (direct route)")
+                
+                # Set moderate speed for return trip
+                traci.vehicle.setMaxSpeed(erv_id, 15.0)
+                traci.vehicle.setSpeed(erv_id, -1)
+                
+                # Set stop at parking location once arrived
+                lane_id = parking_edge + "_0"
+                lane_length = traci.lane.getLength(lane_id)
+                pos = lane_length / 2.0
+                traci.vehicle.setStop(erv_id, edgeID=parking_edge, pos=pos, duration=1e6)
+                
+            except Exception as e:
+                print(f"[ERV RESET] {erv_id} parking reset attempted: {e}")
+        
+        erv_status[erv_id] = 'idle'
+        erv_assignments[erv_id] = None
+        erv_destinations[erv_id] = None
+        erv_target_edge[erv_id] = None
+        erv_arrival_times[erv_id] = None
+    except Exception as e:
+        print(f"[ERV RESET ERROR] {erv_id}: {e}")
+
+def manage_erv_operations(ambulance_readiness_keys):
+    """Manage ERV assignments, dispatch, arrival, and cleanup."""
+    for erv_id in ambulance_readiness_keys:
+        initialize_erv_state(erv_id)
+        
+        if erv_status[erv_id] == 'assigned':
+            accident_id = erv_assignments[erv_id]
+            if accident_id in accident_status:
+                dispatch_erv(erv_id, erv_target_edge[erv_id], erv_destinations[erv_id])
+        
+        elif erv_status[erv_id] == 'en_route':
+            accident_id = erv_assignments[erv_id]
+            if accident_id in accident_status:
+                if check_erv_arrival(erv_id, accident_id):
+                    print(f"[ERV ARRIVAL] {erv_id} has arrived at accident {accident_id}")
+        
+        elif erv_status[erv_id] == 'arrived':
+            accident_id = erv_assignments[erv_id]
+            if accident_id in accident_status and not accident_status[accident_id]['cleared']:
+                clear_accident(erv_id, accident_id)
+                # Wait a moment before resetting
+                if traci.simulation.getTime() - erv_arrival_times.get(erv_id, 0) > 2.0:
+                    reset_erv_after_service(erv_id)
 
 # -------------------- START SUMO --------------------
 traci.start([sumoBinary, "-c", sumoConfig,
@@ -261,12 +477,12 @@ for vid, route in ambulance_parking_routes.items():
         lane_length = traci.lane.getLength(lane_id)
         pos = lane_length / 2.0
         traci.vehicle.setStop(vid, edgeID=parking_edge, pos=pos, duration=1e6)
+        initialize_erv_state(vid)
     except Exception as e:
         print(f"Failed to spawn ambulance {vid}: {e}")
 
 
-# ----------------------------best_erv part
-# Initialize ambulance readiness dictionary
+# -------------------- Initialize ambulance readiness dictionary --------------------
 ambulance_readiness = {amb_id: True for amb_id in ambulance_parking_routes.keys()}
 
 # -------------------- SPAWN VEHICLES FUNCTION --------------------
@@ -332,13 +548,43 @@ while step < MAX_STEPS:
                 total_accidents += 1
                 print(f"[ACCIDENT] Vehicles involved: {pair} at position {pos1} (Total accidents: {total_accidents})")
 
-    # Register accidents in CEN
+    # Register accidents in CEN and dispatch ambulances
     for collision_pair, location in new_collisions:
         accident_id = f"ACC_{total_accidents:03d}"
         x, y = location
         sim_time = traci.simulation.getTime()
         source_vehicle = collision_pair[0]
         cen.register(accident_id, (x, y), sim_time, source_vehicle)
+        
+        # Detect accident edge and select best ambulance
+        accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
+        
+        # Collect ambulance positions
+        amb_positions = {}
+        for amb in ambulance_readiness.keys():
+            try:
+                amb_positions[amb] = traci.vehicle.getPosition(amb)
+            except Exception:
+                continue
+        
+        # GA call to select best ambulance
+        best_ambulance = select_best_ambulance(x, y, amb_positions, accident_edge)
+        
+        # Assign and dispatch ERV - only if it's available
+        if best_ambulance and erv_status.get(best_ambulance, 'idle') == 'idle':
+            assign_erv_to_accident(best_ambulance, accident_id, x, y, accident_edge, collision_pair)
+            print(f"[AMBULANCE] Dispatching {best_ambulance} to accident {accident_id} at ({x}, {y})")
+        else:
+            # Find another available ERV
+            available_erv = get_available_erv(ambulance_readiness.keys())
+            if available_erv:
+                assign_erv_to_accident(available_erv, accident_id, x, y, accident_edge, collision_pair)
+                print(f"[AMBULANCE] Dispatching {available_erv} to accident {accident_id} at ({x}, {y})")
+            else:
+                print(f"[WARNING] No available ERV for accident {accident_id}")
+
+    # Manage ERV operations (dispatch, arrival detection, cleanup)
+    manage_erv_operations(ambulance_readiness.keys())
 
     # Vehicles listen to CEN broadcasts
     for vid, vehicle in vehicles_dict.items():
@@ -349,24 +595,4 @@ while step < MAX_STEPS:
     # Periodic CEN broadcast
     cen.broadcast(traci.simulation.getTime(), vehicles_dict=vehicles_dict, graph=graph, comm_range=V2V_COMMUNICATION_RANGE)
 
-    def detect_accident(veh1, veh2, x, y):
-            """Dummy implementation: returns the current edge of veh1 as the accident edge."""
-            try:
-                return traci.vehicle.getRoadID(veh1)
-            except Exception:
-                return None
-
-    accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
-
-        # Collect ambulance positions
-    positions = {}
-    for amb in ambulance_readiness.keys():
-            try:
-                positions[amb] = traci.vehicle.getPosition(amb)
-            except Exception:
-                continue
-
-        # GA call
-    best_ambulance = select_best_ambulance(x, y, positions, accident_edge)
-    
 traci.close()
