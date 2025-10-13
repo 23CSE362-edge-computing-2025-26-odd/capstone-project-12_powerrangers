@@ -10,6 +10,11 @@ from cen_broadcast import CENBroadcast
 from vehicle import Vehicle
 import traci
 import sumolib
+# -------------------- CLOUD INTEGRATION START --------------------
+# Install the required library first: pip install supabase
+from supabase import create_client, Client
+# -------------------- CLOUD INTEGRATION END --------------------
+
 
 # -------------------- SUMO PATH SETUP --------------------
 if 'SUMO_HOME' not in os.environ:
@@ -19,6 +24,41 @@ tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
 if tools not in sys.path:
     sys.path.append(tools)
 from best_erv import select_best_ambulance
+
+# -------------------- SUPABASE SETUP --------------------
+SUPABASE_URL = "https://viktldenjhwndygewykg.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpa3RsZGVuamh3bmR5Z2V3eWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzQ0MjYsImV4cCI6MjA3NTUxMDQyNn0.JYjoyhYFeB6kbWD0vBD_Tmn7-CcpVGz08HgaIt3eM20"
+TABLE = "accidents"
+
+# Initialize Supabase client
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("[CLOUD] Successfully connected to Supabase.")
+except Exception as e:
+    supabase = None
+    print(f"[CLOUD ERROR] Could not connect to Supabase: {e}")
+
+# -------------------- CLOUD LOGGING FUNCTIONS --------------------
+def log_new_accident_to_cloud(accident_data):
+    if not supabase:
+        print("[CLOUD] Supabase client not available. Skipping log.")
+        return
+    try:
+        data, count = supabase.table(TABLE).insert(accident_data).execute()
+        print(f"[CLOUD] Logged new accident: {accident_data['accident_id']}")
+    except Exception as e:
+        print(f"[CLOUD ERROR] Failed to log new accident {accident_data['accident_id']}: {e}")
+
+def update_accident_in_cloud(accident_id, update_data):
+    if not supabase:
+        print("[CLOUD] Supabase client not available. Skipping update.")
+        return
+    try:
+        data, count = supabase.table(TABLE).update(update_data).eq('accident_id', accident_id).execute()
+        print(f"[CLOUD] Updated accident {accident_id} with status: {update_data.get('status', 'N/A')}")
+    except Exception as e:
+        print(f"[CLOUD ERROR] Failed to update accident {accident_id}: {e}")
+
 
 # -------------------- SUMO SETUP --------------------
 sumoBinary = sumolib.checkBinary("sumo-gui")
@@ -273,10 +313,21 @@ def assign_erv_to_accident(erv_id, accident_id, accident_x, accident_y, accident
         'location': (accident_x, accident_y),
         'erv': erv_id,
         'cleared': False,
-        'vehicles': list(collision_pair)
+        'vehicles': list(collision_pair),
+        'detection_time': traci.simulation.getTime() # Store detection time
     }
     accident_vehicles[accident_id] = list(collision_pair)
     print(f"[ERV] {erv_id} assigned to {accident_id} on edge {accident_edge}")
+
+    # --- CLOUD LOG ---
+    assignment_time = traci.simulation.getTime()
+    update_payload = {
+        "assigned_ambulance": erv_id,
+        "assignment_time": assignment_time,
+        "status": "assigned"
+    }
+    update_accident_in_cloud(accident_id, update_payload)
+    # --- END CLOUD LOG ---
 
 def dispatch_erv(erv_id, accident_edge, accident_location):
     """Dispatch ERV using the pre-computed optimal route"""
@@ -336,9 +387,19 @@ def check_erv_arrival(erv_id, accident_id):
         target_edge = erv_target_edge.get(erv_id)
         
         if distance <= 20.0 or (target_edge and current_edge == target_edge):
+            arrival_time = traci.simulation.getTime()
             erv_status[erv_id] = 'arrived'
-            erv_arrival_times[erv_id] = traci.simulation.getTime()
+            erv_arrival_times[erv_id] = arrival_time
             print(f"[ERV] {erv_id} arrived at {accident_id}")
+            
+            # --- CLOUD LOG ---
+            update_payload = {
+                "arrival_time": arrival_time,
+                "status": "arrived"
+            }
+            update_accident_in_cloud(accident_id, update_payload)
+            # --- END CLOUD LOG ---
+            
             return True
     except:
         pass
@@ -361,7 +422,23 @@ def clear_accident(erv_id, accident_id):
         
         accident_status[accident_id]['cleared'] = True
         print(f"[CLEAR] {accident_id} cleared")
-        
+
+        # --- CLOUD LOG ---
+        clear_time = traci.simulation.getTime()
+        detection_time = accident_status[accident_id].get('detection_time')
+        arrival_time = erv_arrival_times.get(erv_id)
+        response_time = None
+        if detection_time is not None and arrival_time is not None:
+            response_time = arrival_time - detection_time
+
+        update_payload = {
+            "clear_time": clear_time,
+            "response_time": response_time,
+            "status": "cleared"
+        }
+        update_accident_in_cloud(accident_id, update_payload)
+        # --- END CLOUD LOG ---
+
         # Immediately return ambulance to parking after clearing
         return_ambulance_to_parking(erv_id)
         
@@ -604,6 +681,19 @@ while step < MAX_STEPS:
         # Detect accident edge
         accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
         
+        # --- CLOUD LOG ---
+        initial_payload = {
+            "accident_id": accident_id,
+            "location_x": x,
+            "location_y": y,
+            "accident_edge": accident_edge,
+            "vehicles_involved": list(collision_pair),
+            "detection_time": sim_time,
+            "status": "detected"
+        }
+        log_new_accident_to_cloud(initial_payload)
+        # --- END CLOUD LOG ---
+
         # Register with CEN
         cen.register(accident_id, (x, y), sim_time, list(collision_pair), accident_edge=accident_edge)
         
