@@ -95,6 +95,13 @@ accident_status = {}
 erv_arrival_times = {}
 accident_vehicles = {}
 
+# -------------------- UNIQUE ID GENERATION --------------------
+def generate_unique_accident_id():
+    """Generate a truly unique accident ID using timestamp and UUID"""
+    timestamp = int(time.time() * 1000)  # milliseconds since epoch
+    unique_suffix = uuid.uuid4().hex[:8]  # 8 characters from UUID
+    return f"ACC_{timestamp}_{unique_suffix}"
+
 # -------------------- PARSE ROUTES --------------------
 rou_file = "vehicles.rou.xml"
 tree = ET.parse(rou_file)
@@ -642,9 +649,10 @@ MAX_STEPS = 500
 while step < MAX_STEPS:
     traci.simulationStep()
     step += 1
-    time.sleep(0.5)
+    time.sleep(0.25)
 
     if step % SPAWN_INTERVAL == 0:
+
         for _ in range(random.randint(1, 2)):
             spawn_vehicle(step)
 
@@ -674,9 +682,12 @@ while step < MAX_STEPS:
                 print(f"[ACCIDENT {total_accidents}] {pair} at {pos1}")
 
     for collision_pair, location in new_collisions:
-        accident_id = f"ACC_{total_accidents:03d}"
+        # Generate truly unique accident ID
+        accident_id = generate_unique_accident_id()
         x, y = location
         sim_time = traci.simulation.getTime()
+        
+        print(f"[UNIQUE ID] Generated: {accident_id}")
         
         # Detect accident edge
         accident_edge = detect_accident(collision_pair[0], collision_pair[1], x, y)
@@ -714,6 +725,13 @@ while step < MAX_STEPS:
         else:
             available_erv = get_available_erv(ambulance_readiness.keys())
             if available_erv:
+                # If GA didn't find a good one, still try to compute route for available ERV
+                if not optimal_route:
+                    try:
+                        from best_erv import select_best_ambulance
+                        _, optimal_route = select_best_ambulance(x, y, amb_positions, accident_edge)
+                    except:
+                        optimal_route = None
                 assign_erv_to_accident(available_erv, accident_id, x, y, accident_edge, collision_pair, optimal_route)
             else:
                 print(f"[WARNING] No available ERV for {accident_id}")
@@ -728,3 +746,10 @@ while step < MAX_STEPS:
     cen.broadcast(traci.simulation.getTime(), vehicles_dict=vehicles_dict, graph=graph, comm_range=V2V_COMMUNICATION_RANGE)
 
 traci.close()
+print("\n" + "="*60)
+print("SIMULATION SUMMARY")
+print("="*60)
+print(f"Total Accidents Detected: {total_accidents}")
+print(f"Total Unique Accident IDs Generated: {len(accident_status)}")
+print(f"All IDs: {list(accident_status.keys())}")
+print("="*60)
