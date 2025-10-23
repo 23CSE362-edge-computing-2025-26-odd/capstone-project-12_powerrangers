@@ -89,7 +89,7 @@ if "created_at" in df.columns:
     st.plotly_chart(fig_timeline, use_container_width=True)
 
 # ==== Accident Heatmap (2D map) ====
-st.subheader("🗺️ Accident Locations (Simulation Coordinates)")
+st.subheader("Accident Locations (Simulation Coordinates)")
 if "location_x" in df.columns and "location_y" in df.columns:
     fig_map = px.scatter(
         df, x="location_x", y="location_y",
