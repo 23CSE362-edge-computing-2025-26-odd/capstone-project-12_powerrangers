@@ -16,7 +16,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 st.set_page_config(page_title="SUMO Accident Dashboard", layout="wide")
 
 # ==== Header ====
-st.markdown("## 🚦 SUMO Accident Response Dashboard")
+st.markdown("## SUMO Accident Response Dashboard")
 
 # ==== Fetch Data ====
 with st.spinner("Loading accident data..."):
@@ -48,7 +48,7 @@ with c3:
 st.markdown("---")
 
 # ==== Accidents per Edge Bar Chart ====
-st.subheader("📊 Accidents per Edge")
+st.subheader("Accidents per Edge")
 fig_edges = px.bar(
     edge_counts,
     x="Edge", y="Accidents",
@@ -62,7 +62,7 @@ fig_edges.update_layout(template="plotly_white")
 st.plotly_chart(fig_edges, use_container_width=True)
 
 # ==== Accident Status Pie Chart ====
-st.subheader("🟢 Accident Status Distribution")
+st.subheader("Accident Status Distribution")
 if "status" in df.columns:
     status_counts = df["status"].value_counts().reset_index()
     status_counts.columns = ["Status", "Count"]
@@ -73,14 +73,14 @@ if "status" in df.columns:
     st.plotly_chart(fig_status, use_container_width=True)
 
 # ==== Response Time Histogram ====
-st.subheader("⏱️ Response Time Distribution")
+st.subheader("Response Time Distribution")
 if "response_time" in df.columns:
     fig_response = px.histogram(df, x="response_time", nbins=20, title="Ambulance Response Time Distribution")
     fig_response.update_layout(template="plotly_white", xaxis_title="Response Time (s)", yaxis_title="Count")
     st.plotly_chart(fig_response, use_container_width=True)
 
 # ==== Accident Timeline (per day) ====
-st.subheader("📅 Accident Timeline")
+st.subheader("Accident Timeline")
 if "created_at" in df.columns:
     df["date"] = pd.to_datetime(df["created_at"]).dt.date
     timeline = df.groupby("date").size().reset_index(name="Accidents")
@@ -102,7 +102,7 @@ if "location_x" in df.columns and "location_y" in df.columns:
     st.plotly_chart(fig_map, use_container_width=True)
 
 # ==== Accident Data Table ====
-st.subheader("📋 Accident Records")
+st.subheader("Accident Records")
 display_columns = ["accident_id", "accident_edge", "vehicles_involved", "response_time", "status", "created_at"]
 st.dataframe(df[display_columns], use_container_width=True, height=400)
 
